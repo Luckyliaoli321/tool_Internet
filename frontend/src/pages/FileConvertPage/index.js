@@ -72,22 +72,53 @@ const FileConvertPage = () => {
         if (data && data.formats && data.formats.length > 0) {
           setSupportedFormats(data.formats);
           setUsingDefaultFormats(false);
+          // 清除错误消息，如果之前有的话
+          setError('');
         } else {
           console.warn('API返回格式为空，使用默认格式');
           setSupportedFormats(DEFAULT_FORMATS);
           setUsingDefaultFormats(true);
+          // 使用更友好的消息，不把这视为错误
+          setError('');
         }
       } catch (err) {
         console.error('获取格式错误详情:', err);
         // 使用默认格式
         setSupportedFormats(DEFAULT_FORMATS);
         setUsingDefaultFormats(true);
-        setError('获取支持的文件格式失败，已使用默认格式');
+        setError('已使用默认文件格式（网络请求失败）');
       }
     };
 
     fetchSupportedFormats();
   }, []);
+
+  // 添加重试获取格式的功能
+  const retryFetchFormats = async () => {
+    setError('');
+    setUsingDefaultFormats(false);
+    
+    try {
+      console.log('重试获取支持的文件格式...');
+      const data = await fileAPI.getSupportedFormats();
+      console.log('重试获取格式成功:', data);
+      
+      if (data && data.formats && data.formats.length > 0) {
+        setSupportedFormats(data.formats);
+        setUsingDefaultFormats(false);
+        message.success('已成功更新文件格式');
+      } else {
+        setSupportedFormats(DEFAULT_FORMATS);
+        setUsingDefaultFormats(true);
+        setError('服务器返回了空数据，使用默认格式');
+      }
+    } catch (err) {
+      console.error('重试获取格式错误:', err);
+      setSupportedFormats(DEFAULT_FORMATS);
+      setUsingDefaultFormats(true);
+      setError('获取格式失败，已使用默认格式');
+    }
+  };
 
   // 当文件变化时，更新可用的目标格式
   useEffect(() => {
@@ -233,9 +264,22 @@ const FileConvertPage = () => {
 
         {error && (
           <Alert
-            message="错误"
-            description={error}
-            type="error"
+            message={usingDefaultFormats ? "提示" : "错误"}
+            description={
+              <div>
+                {error}
+                {usingDefaultFormats && (
+                  <Button
+                    type="link"
+                    onClick={retryFetchFormats}
+                    style={{ padding: 0, marginLeft: 10 }}
+                  >
+                    重试获取
+                  </Button>
+                )}
+              </div>
+            }
+            type={usingDefaultFormats ? "info" : "error"}
             showIcon
             closable
             onClose={() => setError('')}
@@ -248,6 +292,27 @@ const FileConvertPage = () => {
             onFileUpload={handleFileUpload}
             acceptedFormats={getAcceptedFormats()}
           />
+          {usingDefaultFormats && !error && (
+            <Alert
+              message="提示"
+              description={
+                <div>
+                  当前使用默认支持格式列表。
+                  <Button
+                    type="link"
+                    onClick={retryFetchFormats}
+                    style={{ padding: 0, marginLeft: 10 }}
+                  >
+                    获取完整格式列表
+                  </Button>
+                </div>
+              }
+              type="info"
+              showIcon
+              className="format-alert"
+              style={{ marginTop: 16 }}
+            />
+          )}
         </div>
 
         {file && (

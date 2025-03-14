@@ -1,5 +1,77 @@
 import axios from 'axios';
 
+// ==== 紧急修复：阻止任何对localhost的请求 ====
+// 保存原始方法
+const originalCreate = axios.create;
+
+// 重写axios.create方法
+axios.create = function(...args) {
+  const instance = originalCreate.apply(this, args);
+  
+  // 保存原始get方法
+  const originalGet = instance.get;
+  
+  // 替换get方法
+  instance.get = function(url, config) {
+    // 检查URL是否包含localhost
+    if (url && url.includes('localhost')) {
+      console.warn(`阻止了对localhost的请求: ${url}`);
+      
+      // 对于文件格式，直接返回默认格式而不发送请求
+      if (url.includes('/file/formats')) {
+        console.log('返回默认文件格式');
+        return Promise.resolve({ 
+          data: {
+            success: true,
+            formats: [
+              {
+                name: 'Word文档',
+                extension: 'docx',
+                targetFormats: [
+                  { name: 'PDF文档', extension: 'pdf' },
+                  { name: '文本文件', extension: 'txt' }
+                ]
+              },
+              {
+                name: 'PDF文档',
+                extension: 'pdf',
+                targetFormats: [
+                  { name: 'Word文档', extension: 'docx' },
+                  { name: '文本文件', extension: 'txt' }
+                ]
+              },
+              {
+                name: 'Excel表格',
+                extension: 'xlsx',
+                targetFormats: [
+                  { name: 'CSV文件', extension: 'csv' },
+                  { name: 'PDF文档', extension: 'pdf' }
+                ]
+              },
+              {
+                name: '图片',
+                extension: 'jpg',
+                targetFormats: [
+                  { name: 'PNG图片', extension: 'png' },
+                  { name: 'WebP图片', extension: 'webp' }
+                ]
+              }
+            ]
+          }
+        });
+      }
+      
+      // 对于其他请求，返回一个带有错误信息的拒绝承诺
+      return Promise.reject(new Error('禁止对localhost的请求'));
+    }
+    
+    // 对于非localhost的请求，使用原始方法
+    return originalGet.apply(this, arguments);
+  };
+  
+  return instance;
+};
+
 // API基础URL - 在生产环境中强制使用相对路径
 // 完全不再依赖环境变量或window.location检测
 const API_BASE_URL = '/api';

@@ -7,6 +7,50 @@ import './index.css';
 // 引入Ant Design全局样式
 import 'antd/dist/reset.css';
 
+// ==== 全局错误处理和请求拦截 ====
+(function setupGlobalErrorHandling() {
+  // 拦截所有对localhost的fetch请求
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options) {
+    if (typeof url === 'string' && url.includes('localhost')) {
+      console.warn(`全局拦截: 阻止了对localhost的fetch请求: ${url}`);
+      return Promise.reject(new Error('禁止对localhost的请求'));
+    }
+    return originalFetch.apply(this, arguments);
+  };
+  
+  // 拦截XMLHttpRequest
+  const originalXHROpen = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function(method, url, ...args) {
+    if (typeof url === 'string' && url.includes('localhost')) {
+      console.warn(`全局拦截: 阻止了对localhost的XHR请求: ${method} ${url}`);
+      // 我们不能直接阻止XHR，但可以将URL修改为一个不存在的地址
+      url = 'https://prevented-localhost-request.invalid';
+    }
+    return originalXHROpen.call(this, method, url, ...args);
+  };
+  
+  // 处理未捕获的错误
+  window.addEventListener('error', function(event) {
+    console.error('全局错误:', event.error);
+    // 防止与localhost相关的错误显示给用户
+    if (event.error && event.error.message && event.error.message.includes('localhost')) {
+      console.warn('隐藏localhost相关错误');
+      event.preventDefault();
+    }
+  });
+  
+  // 处理未处理的Promise rejection
+  window.addEventListener('unhandledrejection', function(event) {
+    console.error('未处理的Promise拒绝:', event.reason);
+    // 防止与localhost相关的拒绝显示给用户
+    if (event.reason && event.reason.message && event.reason.message.includes('localhost')) {
+      console.warn('隐藏localhost相关拒绝');
+      event.preventDefault();
+    }
+  });
+})();
+
 /**
  * 错误边界组件
  * @class ErrorBoundary

@@ -1,7 +1,8 @@
 import axios from 'axios';
 
 // API基础URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5002/api';
+const API_BASE_URL = process.env.REACT_APP_API_URL || 
+  (window.location.hostname === 'localhost' ? 'http://localhost:5002/api' : '/api');
 
 /**
  * 创建axios实例

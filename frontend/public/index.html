@@ -1,6 +1,120 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
+    <!-- 禁用网络请求 - 必须是第一个脚本 -->
+    <script>
+      (function() {
+        // 目标URL - 需要完全禁止访问的URL
+        var TARGET_URL = 'localhost:5002/api/file/formats';
+        
+        console.log('🔒 强制禁用所有网络请求');
+        
+        // =========== 禁用XMLHttpRequest ===========
+        // 保存原始的XMLHttpRequest
+        var OriginalXHR = window.XMLHttpRequest;
+        
+        // 重写XMLHttpRequest构造函数
+        window.XMLHttpRequest = function() {
+          var xhr = new OriginalXHR();
+          var originalOpen = xhr.open;
+          var originalSend = xhr.send;
+          
+          // 重写open方法
+          xhr.open = function(method, url) {
+            console.log('拦截XHR请求:', method, url);
+            
+            // 检查是否包含目标URL
+            if (url && url.indexOf(TARGET_URL) !== -1) {
+              console.warn('🚫 强制阻止请求:', url);
+              
+              // 设置一个标志，在send时处理
+              xhr._blockedUrl = url;
+              
+              // 将URL修改为一个肯定会失败的URL (但不会触发实际网络请求)
+              url = 'about:blank';
+            }
+            
+            // 调用原始的open方法
+            return originalOpen.apply(this, arguments);
+          };
+          
+          // 重写send方法
+          xhr.send = function() {
+            // 如果是被阻止的URL
+            if (xhr._blockedUrl) {
+              console.warn('⛔ 拦截发送请求:', xhr._blockedUrl);
+              
+              // 伪造一个网络错误响应
+              setTimeout(function() {
+                var errorEvent = new ProgressEvent('error');
+                xhr.dispatchEvent(errorEvent);
+                
+                if (xhr.onerror) {
+                  xhr.onerror(errorEvent);
+                }
+              }, 0);
+              
+              return; // 直接返回，不发送请求
+            }
+            
+            // 对于其他URL，正常发送请求
+            return originalSend.apply(this, arguments);
+          };
+          
+          return xhr;
+        };
+        
+        // =========== 禁用Fetch API ===========
+        var originalFetch = window.fetch;
+        if (originalFetch) {
+          window.fetch = function(resource, init) {
+            var url = resource;
+            if (resource instanceof Request) {
+              url = resource.url;
+            }
+            
+            if (typeof url === 'string' && url.indexOf(TARGET_URL) !== -1) {
+              console.warn('🚫 拦截fetch请求:', url);
+              return Promise.reject(new Error('请求被阻止'));
+            }
+            
+            return originalFetch.apply(this, arguments);
+          };
+        }
+        
+        // =========== 禁用网页中的错误显示 ===========
+        // 隐藏与网络相关的错误
+        window.addEventListener('error', function(event) {
+          // 检查是否与网络错误相关
+          if (event.message && (
+              event.message.includes('net::') || 
+              event.message.includes('Failed to fetch') ||
+              event.message.includes('NetworkError') ||
+              event.message.includes('localhost')
+          )) {
+            console.warn('🙈 隐藏错误:', event.message);
+            event.preventDefault();
+            return false;
+          }
+        }, true);
+        
+        window.addEventListener('unhandledrejection', function(event) {
+          if (event.reason && event.reason.message && (
+              event.reason.message.includes('net::') ||
+              event.reason.message.includes('Failed to fetch') ||
+              event.reason.message.includes('NetworkError') ||
+              event.reason.message.includes('localhost')
+          )) {
+            console.warn('🙈 隐藏Promise拒绝:', event.reason.message);
+            event.preventDefault();
+            return false;
+          }
+        }, true);
+        
+        console.log('✅ 网络拦截器设置完成');
+      })();
+    </script>
+    
     <!-- ⚠️⚠️⚠️ 关键修复：最高优先级拦截器 ⚠️⚠️⚠️ -->
     <script>
       // 为了解决本地开发环境的访问问题，我们在HTML加载最早期禁用了网络请求

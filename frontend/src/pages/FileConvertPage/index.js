@@ -75,17 +75,37 @@ const FileConvertPage = () => {
   useEffect(() => {
     console.log('文件转换页面初始化 - 仅使用预设格式');
     
-    // 直接同步获取格式，不通过API调用
-    const formats = getInitialFormats();
-    setSupportedFormats(formats);
-    setUsingDefaultFormats(true);
-    
-    console.log('已加载格式数据:', formats.length, '项');
+    try {
+      // 完全同步获取数据，不调用API函数
+      let formats = [];
+      
+      if (window.__fileFormatsFallback && window.__fileFormatsFallback.formats) {
+        formats = window.__fileFormatsFallback.formats;
+        console.log('使用全局预设数据:', formats.length, '项');
+      } else {
+        formats = DEFAULT_FORMATS;
+        console.log('使用本地默认数据');
+      }
+      
+      // 同步设置状态
+      setSupportedFormats(formats);
+      setUsingDefaultFormats(true);
+    } catch (err) {
+      console.error('加载格式错误:', err);
+      // 发生错误时使用默认格式
+      setSupportedFormats(DEFAULT_FORMATS);
+      setUsingDefaultFormats(true);
+    }
   }, []);
 
-  // 重试获取格式的功能（实际上只是一个UI交互，不会发送请求）
+  // 重试获取格式的功能（仅UI反馈，不发送请求）
   const retryFetchFormats = () => {
-    message.info('已使用默认文件格式（离线模式）');
+    try {
+      message.info('已使用默认文件格式（离线模式）');
+      console.log('用户点击重试，仅显示提示信息');
+    } catch (err) {
+      console.error('重试错误:', err);
+    }
   };
 
   // 当文件变化时，更新可用的目标格式

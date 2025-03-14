@@ -131,6 +131,12 @@ const api = axios.create({
 // 添加请求拦截器确保所有请求都使用正确的URL
 api.interceptors.request.use(
   config => {
+    // 检查是否是获取格式的请求，如果是，直接阻止
+    if (config.url && config.url.includes('/file/formats')) {
+      console.warn('请求拦截器: 阻止获取格式的请求:', config.url);
+      throw new Error('已阻止格式请求');
+    }
+    
     // 强制修改为相对路径，确保不使用localhost
     if (config.url && config.url.includes('localhost')) {
       console.warn('检测到localhost URL，已自动修正');
@@ -157,19 +163,17 @@ api.interceptors.request.use(
  */
 export const fileAPI = {
   /**
-   * 获取支持的文件格式
-   * @returns {Promise<Object>} 支持的格式数据 
+   * 获取支持的文件格式 - 不发送任何网络请求，直接返回预设数据
+   * @returns {Object} 支持的格式数据
    */
-  getSupportedFormats: async () => {
-    console.log('📑 获取支持的文件格式（使用本地数据）');
+  getSupportedFormats: function() {
+    console.log('📑 直接返回预设格式数据，不发送网络请求');
     
-    // 直接返回默认格式，不发送网络请求
+    // 直接同步返回预设数据，不使用async/await或Promise
     if (window.__fileFormatsFallback) {
-      console.log('使用全局预设格式数据');
       return window.__fileFormatsFallback;
     }
     
-    console.log('使用API模块预设格式数据');
     return DEFAULT_FORMATS;
   },
   

@@ -50,7 +50,6 @@ const DEFAULT_FORMATS = [
  */
 const FileConvertPage = () => {
   // 从window全局变量获取格式，如果不存在则使用默认值
-  // 这样确保不会发送任何网络请求
   const getInitialFormats = () => {
     if (window.__fileFormatsFallback && window.__fileFormatsFallback.formats) {
       console.log('直接使用全局预设格式数据');
@@ -72,10 +71,16 @@ const FileConvertPage = () => {
   const [isCompleted, setIsCompleted] = useState(false);
   const [usingDefaultFormats, setUsingDefaultFormats] = useState(true);
 
-  // 组件初始化后直接设置离线模式
+  // 初始化时直接使用预设格式，不发送网络请求
   useEffect(() => {
-    console.log('文件转换页面初始化 - 使用离线模式');
+    console.log('文件转换页面初始化 - 仅使用预设格式');
+    
+    // 直接同步获取格式，不通过API调用
+    const formats = getInitialFormats();
+    setSupportedFormats(formats);
     setUsingDefaultFormats(true);
+    
+    console.log('已加载格式数据:', formats.length, '项');
   }, []);
 
   // 重试获取格式的功能（实际上只是一个UI交互，不会发送请求）

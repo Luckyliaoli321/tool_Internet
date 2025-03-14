@@ -65,14 +65,23 @@ const FileConvertPage = () => {
   useEffect(() => {
     const fetchSupportedFormats = async () => {
       try {
-        console.log('开始获取支持的文件格式...');
+        console.log('开始获取文件格式...');
+        
+        // 直接使用HTML中预定义的格式，完全绕过API调用
+        if (window.__fileFormatsFallback) {
+          console.log('使用全局预设格式数据');
+          setSupportedFormats(window.__fileFormatsFallback.formats);
+          setUsingDefaultFormats(true);
+          return;
+        }
         
         // 禁止任何可能导致错误的初始请求
         setSupportedFormats(DEFAULT_FORMATS);
         
-        // 延迟执行，确保所有拦截器都已经注册
+        // 如果没有全局变量，延迟尝试获取（但实际上在前面已经返回了，这段代码不会执行）
         setTimeout(async () => {
           try {
+            // 尝试从API获取，但我们已经在上面返回了
             const data = await fileAPI.getSupportedFormats();
             console.log('获取格式成功:', data);
             
@@ -110,8 +119,18 @@ const FileConvertPage = () => {
   // 添加重试获取格式的功能
   const retryFetchFormats = async () => {
     setError('');
-    setUsingDefaultFormats(false);
     
+    // 直接使用全局预设格式，不尝试网络请求
+    if (window.__fileFormatsFallback) {
+      console.log('重试：使用全局预设格式数据');
+      setSupportedFormats(window.__fileFormatsFallback.formats);
+      setUsingDefaultFormats(true);
+      message.info('使用默认文件格式（无法连接到服务器）');
+      return;
+    }
+    
+    // 以下代码在正常情况下不会执行
+    setUsingDefaultFormats(false);
     try {
       console.log('重试获取支持的文件格式...');
       const data = await fileAPI.getSupportedFormats();

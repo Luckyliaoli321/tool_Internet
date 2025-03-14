@@ -206,7 +206,13 @@ export const fileAPI = {
    * @returns {Promise} 支持的格式列表
    */
   getSupportedFormats: async () => {
-    // 完全禁用网络请求，直接返回默认格式
+    // 优先使用全局预设格式
+    if (window.__fileFormatsFallback) {
+      console.log('API: 直接使用全局预设格式，无需网络请求');
+      return window.__fileFormatsFallback;
+    }
+    
+    // 其次直接返回默认格式，不发送网络请求
     console.log('获取支持的文件格式 - 直接使用预设格式，不发送网络请求');
     return DEFAULT_FORMATS;
     

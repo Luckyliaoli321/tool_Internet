@@ -206,31 +206,18 @@ export const fileAPI = {
    * @returns {Promise} 支持的格式列表
    */
   getSupportedFormats: async () => {
+    // 直接返回预设格式，不发送任何网络请求
+    console.log('API: 直接返回预设格式，不发送任何网络请求');
+    
     // 优先使用全局预设格式
-    if (window.__fileFormatsFallback) {
-      console.log('API: 直接使用全局预设格式，无需网络请求');
+    if (typeof window !== 'undefined' && window.__fileFormatsFallback) {
+      console.log('使用全局预设格式');
       return window.__fileFormatsFallback;
     }
     
-    // 其次直接返回默认格式，不发送网络请求
-    console.log('获取支持的文件格式 - 直接使用预设格式，不发送网络请求');
+    // 其次使用默认格式
+    console.log('使用默认格式常量');
     return DEFAULT_FORMATS;
-    
-    // 以下代码永远不会执行
-    try {
-      console.log('获取支持的文件格式...');
-      const response = await api.get('/file/formats');
-      console.log('获取格式成功:', response.data);
-      return response.data;
-    } catch (error) {
-      console.error('获取格式错误:', error);
-      // 在生产环境中返回默认格式
-      if (process.env.NODE_ENV === 'production') {
-        console.warn('API获取失败，返回默认格式');
-        return DEFAULT_FORMATS;
-      }
-      throw error.response ? error.response.data : { message: '服务器连接错误' };
-    }
   },
   
   /**

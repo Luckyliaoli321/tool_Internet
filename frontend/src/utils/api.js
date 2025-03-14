@@ -1,8 +1,12 @@
 import axios from 'axios';
 
-// API基础URL
-const API_BASE_URL = process.env.REACT_APP_API_URL || 
-  (window.location.hostname === 'localhost' ? 'http://localhost:5002/api' : '/api');
+// API基础URL - 修改后的强化版本
+// 在生产环境中始终使用相对路径，不再依赖于window.location.hostname
+const isDevelopment = process.env.NODE_ENV === 'development';
+const API_BASE_URL = process.env.REACT_APP_API_URL || (isDevelopment ? 'http://localhost:5002/api' : '/api');
+
+// 打印当前使用的API基础URL以便调试
+console.log('API 请求基础地址:', API_BASE_URL);
 
 /**
  * 创建axios实例
@@ -13,6 +17,17 @@ const api = axios.create({
     'Content-Type': 'application/json',
   },
 });
+
+// 添加请求拦截器记录每个请求
+api.interceptors.request.use(
+  config => {
+    console.log('API请求:', config.method.toUpperCase(), config.baseURL + config.url);
+    return config;
+  },
+  error => {
+    return Promise.reject(error);
+  }
+);
 
 /**
  * 文件转换API

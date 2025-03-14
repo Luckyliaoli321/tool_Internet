@@ -1,0 +1,27 @@
+.progress-container {
+  margin: 30px 0;
+}
+
+.progress-bar {
+  margin-bottom: 20px;
+}
+
+.progress-actions {
+  display: flex;
+  justify-content: center;
+  gap: 16px;
+}
+
+.action-button {
+  min-width: 120px;
+}
+
+@media (max-width: 768px) {
+  .progress-container {
+    margin: 20px 0;
+  }
+  
+  .action-button {
+    min-width: 100px;
+  }
+} 

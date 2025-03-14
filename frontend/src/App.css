@@ -1,0 +1,33 @@
+.app {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.main-content {
+  flex: 1;
+}
+
+.coming-soon, .not-found {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 400px;
+  text-align: center;
+  padding: 60px 20px;
+}
+
+.coming-soon h1, .not-found h1 {
+  font-size: 36px;
+  margin-bottom: 20px;
+  color: #1890ff;
+}
+
+.not-found h1 {
+  font-size: 72px;
+}
+
+.coming-soon p, .not-found p {
+  font-size: 18px;
+  color: #666;
+} 

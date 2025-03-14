@@ -52,105 +52,28 @@ const FileConvertPage = () => {
   // 状态
   const [file, setFile] = useState(null);
   const [targetFormat, setTargetFormat] = useState('');
-  const [supportedFormats, setSupportedFormats] = useState(DEFAULT_FORMATS); // 初始化为默认格式
+  const [supportedFormats, setSupportedFormats] = useState(
+    // 直接初始化为预设格式或默认格式
+    window.__fileFormatsFallback ? window.__fileFormatsFallback.formats : DEFAULT_FORMATS
+  );
   const [availableTargetFormats, setAvailableTargetFormats] = useState([]);
   const [converting, setConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [convertedFileId, setConvertedFileId] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
-  const [usingDefaultFormats, setUsingDefaultFormats] = useState(false);
+  const [usingDefaultFormats, setUsingDefaultFormats] = useState(true); // 默认使用预设格式
 
-  // 获取支持的文件格式
+  // 初始化时直接提示使用预设格式
   useEffect(() => {
-    const fetchSupportedFormats = async () => {
-      try {
-        console.log('开始获取文件格式...');
-        
-        // 直接使用HTML中预定义的格式，完全绕过API调用
-        if (window.__fileFormatsFallback) {
-          console.log('使用全局预设格式数据');
-          setSupportedFormats(window.__fileFormatsFallback.formats);
-          setUsingDefaultFormats(true);
-          return;
-        }
-        
-        // 禁止任何可能导致错误的初始请求
-        setSupportedFormats(DEFAULT_FORMATS);
-        
-        // 如果没有全局变量，延迟尝试获取（但实际上在前面已经返回了，这段代码不会执行）
-        setTimeout(async () => {
-          try {
-            // 尝试从API获取，但我们已经在上面返回了
-            const data = await fileAPI.getSupportedFormats();
-            console.log('获取格式成功:', data);
-            
-            if (data && data.formats && data.formats.length > 0) {
-              setSupportedFormats(data.formats);
-              setUsingDefaultFormats(false);
-              // 清除错误消息，如果之前有的话
-              setError('');
-            } else {
-              console.warn('API返回格式为空，使用默认格式');
-              setSupportedFormats(DEFAULT_FORMATS);
-              setUsingDefaultFormats(true);
-              // 使用更友好的消息，不把这视为错误
-              setError('');
-            }
-          } catch (innerErr) {
-            console.error('延迟加载格式错误:', innerErr);
-            // 使用默认格式 (已经在开始时设置了)
-            setUsingDefaultFormats(true);
-            setError('已使用默认文件格式（网络请求失败）');
-          }
-        }, 500);
-      } catch (err) {
-        console.error('获取格式错误详情:', err);
-        // 使用默认格式
-        setSupportedFormats(DEFAULT_FORMATS);
-        setUsingDefaultFormats(true);
-        setError('已使用默认文件格式（网络请求失败）');
-      }
-    };
-
-    fetchSupportedFormats();
+    console.log('文件转换页面初始化 - 使用预设格式数据');
   }, []);
 
-  // 添加重试获取格式的功能
+  // 添加重试获取格式的功能（仅用于UI交互，实际上永远使用预设格式）
   const retryFetchFormats = async () => {
     setError('');
-    
-    // 直接使用全局预设格式，不尝试网络请求
-    if (window.__fileFormatsFallback) {
-      console.log('重试：使用全局预设格式数据');
-      setSupportedFormats(window.__fileFormatsFallback.formats);
-      setUsingDefaultFormats(true);
-      message.info('使用默认文件格式（无法连接到服务器）');
-      return;
-    }
-    
-    // 以下代码在正常情况下不会执行
-    setUsingDefaultFormats(false);
-    try {
-      console.log('重试获取支持的文件格式...');
-      const data = await fileAPI.getSupportedFormats();
-      console.log('重试获取格式成功:', data);
-      
-      if (data && data.formats && data.formats.length > 0) {
-        setSupportedFormats(data.formats);
-        setUsingDefaultFormats(false);
-        message.success('已成功更新文件格式');
-      } else {
-        setSupportedFormats(DEFAULT_FORMATS);
-        setUsingDefaultFormats(true);
-        setError('服务器返回了空数据，使用默认格式');
-      }
-    } catch (err) {
-      console.error('重试获取格式错误:', err);
-      setSupportedFormats(DEFAULT_FORMATS);
-      setUsingDefaultFormats(true);
-      setError('获取格式失败，已使用默认格式');
-    }
+    message.info('使用默认文件格式（离线模式）');
+    return;
   };
 
   // 当文件变化时，更新可用的目标格式

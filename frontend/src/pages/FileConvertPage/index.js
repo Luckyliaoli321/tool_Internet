@@ -49,31 +49,38 @@ const DEFAULT_FORMATS = [
  * @returns {React.Component} 文件转换页面组件
  */
 const FileConvertPage = () => {
+  // 从window全局变量获取格式，如果不存在则使用默认值
+  // 这样确保不会发送任何网络请求
+  const getInitialFormats = () => {
+    if (window.__fileFormatsFallback && window.__fileFormatsFallback.formats) {
+      console.log('直接使用全局预设格式数据');
+      return window.__fileFormatsFallback.formats;
+    }
+    console.log('使用组件默认格式数据');
+    return DEFAULT_FORMATS;
+  };
+
   // 状态
   const [file, setFile] = useState(null);
   const [targetFormat, setTargetFormat] = useState('');
-  const [supportedFormats, setSupportedFormats] = useState(
-    // 直接初始化为预设格式或默认格式
-    window.__fileFormatsFallback ? window.__fileFormatsFallback.formats : DEFAULT_FORMATS
-  );
+  const [supportedFormats, setSupportedFormats] = useState(getInitialFormats);
   const [availableTargetFormats, setAvailableTargetFormats] = useState([]);
   const [converting, setConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [convertedFileId, setConvertedFileId] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
-  const [usingDefaultFormats, setUsingDefaultFormats] = useState(true); // 默认使用预设格式
+  const [usingDefaultFormats, setUsingDefaultFormats] = useState(true);
 
-  // 初始化时直接提示使用预设格式
+  // 组件初始化后直接设置离线模式
   useEffect(() => {
-    console.log('文件转换页面初始化 - 使用预设格式数据');
+    console.log('文件转换页面初始化 - 使用离线模式');
+    setUsingDefaultFormats(true);
   }, []);
 
-  // 添加重试获取格式的功能（仅用于UI交互，实际上永远使用预设格式）
-  const retryFetchFormats = async () => {
-    setError('');
-    message.info('使用默认文件格式（离线模式）');
-    return;
+  // 重试获取格式的功能（实际上只是一个UI交互，不会发送请求）
+  const retryFetchFormats = () => {
+    message.info('已使用默认文件格式（离线模式）');
   };
 
   // 当文件变化时，更新可用的目标格式
@@ -253,13 +260,13 @@ const FileConvertPage = () => {
               message="提示"
               description={
                 <div>
-                  当前使用默认支持格式列表。
+                  当前使用离线模式，支持基本格式转换。
                   <Button
                     type="link"
                     onClick={retryFetchFormats}
                     style={{ padding: 0, marginLeft: 10 }}
                   >
-                    获取完整格式列表
+                    了解更多
                   </Button>
                 </div>
               }

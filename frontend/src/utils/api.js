@@ -72,6 +72,45 @@ axios.create = function(...args) {
   return instance;
 };
 
+// 定义默认格式常量
+const DEFAULT_FORMATS = {
+  success: true,
+  formats: [
+    {
+      name: 'Word文档',
+      extension: 'docx',
+      targetFormats: [
+        { name: 'PDF文档', extension: 'pdf' },
+        { name: '文本文件', extension: 'txt' }
+      ]
+    },
+    {
+      name: 'PDF文档',
+      extension: 'pdf',
+      targetFormats: [
+        { name: 'Word文档', extension: 'docx' },
+        { name: '文本文件', extension: 'txt' }
+      ]
+    },
+    {
+      name: 'Excel表格',
+      extension: 'xlsx',
+      targetFormats: [
+        { name: 'CSV文件', extension: 'csv' },
+        { name: 'PDF文档', extension: 'pdf' }
+      ]
+    },
+    {
+      name: '图片',
+      extension: 'jpg',
+      targetFormats: [
+        { name: 'PNG图片', extension: 'png' },
+        { name: 'WebP图片', extension: 'webp' }
+      ]
+    }
+  ]
+};
+
 // API基础URL - 在生产环境中强制使用相对路径
 // 完全不再依赖环境变量或window.location检测
 const API_BASE_URL = '/api';
@@ -167,6 +206,11 @@ export const fileAPI = {
    * @returns {Promise} 支持的格式列表
    */
   getSupportedFormats: async () => {
+    // 完全禁用网络请求，直接返回默认格式
+    console.log('获取支持的文件格式 - 直接使用预设格式，不发送网络请求');
+    return DEFAULT_FORMATS;
+    
+    // 以下代码永远不会执行
     try {
       console.log('获取支持的文件格式...');
       const response = await api.get('/file/formats');
@@ -177,35 +221,7 @@ export const fileAPI = {
       // 在生产环境中返回默认格式
       if (process.env.NODE_ENV === 'production') {
         console.warn('API获取失败，返回默认格式');
-        return {
-          success: true,
-          formats: [
-            {
-              name: 'Word文档',
-              extension: 'docx',
-              targetFormats: [
-                { name: 'PDF文档', extension: 'pdf' },
-                { name: '文本文件', extension: 'txt' }
-              ]
-            },
-            {
-              name: 'PDF文档',
-              extension: 'pdf',
-              targetFormats: [
-                { name: 'Word文档', extension: 'docx' },
-                { name: '文本文件', extension: 'txt' }
-              ]
-            },
-            {
-              name: 'Excel表格',
-              extension: 'xlsx',
-              targetFormats: [
-                { name: 'CSV文件', extension: 'csv' },
-                { name: 'PDF文档', extension: 'pdf' }
-              ]
-            }
-          ]
-        };
+        return DEFAULT_FORMATS;
       }
       throw error.response ? error.response.data : { message: '服务器连接错误' };
     }

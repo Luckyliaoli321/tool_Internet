@@ -66,21 +66,35 @@ const FileConvertPage = () => {
     const fetchSupportedFormats = async () => {
       try {
         console.log('开始获取支持的文件格式...');
-        const data = await fileAPI.getSupportedFormats();
-        console.log('获取格式成功:', data);
         
-        if (data && data.formats && data.formats.length > 0) {
-          setSupportedFormats(data.formats);
-          setUsingDefaultFormats(false);
-          // 清除错误消息，如果之前有的话
-          setError('');
-        } else {
-          console.warn('API返回格式为空，使用默认格式');
-          setSupportedFormats(DEFAULT_FORMATS);
-          setUsingDefaultFormats(true);
-          // 使用更友好的消息，不把这视为错误
-          setError('');
-        }
+        // 禁止任何可能导致错误的初始请求
+        setSupportedFormats(DEFAULT_FORMATS);
+        
+        // 延迟执行，确保所有拦截器都已经注册
+        setTimeout(async () => {
+          try {
+            const data = await fileAPI.getSupportedFormats();
+            console.log('获取格式成功:', data);
+            
+            if (data && data.formats && data.formats.length > 0) {
+              setSupportedFormats(data.formats);
+              setUsingDefaultFormats(false);
+              // 清除错误消息，如果之前有的话
+              setError('');
+            } else {
+              console.warn('API返回格式为空，使用默认格式');
+              setSupportedFormats(DEFAULT_FORMATS);
+              setUsingDefaultFormats(true);
+              // 使用更友好的消息，不把这视为错误
+              setError('');
+            }
+          } catch (innerErr) {
+            console.error('延迟加载格式错误:', innerErr);
+            // 使用默认格式 (已经在开始时设置了)
+            setUsingDefaultFormats(true);
+            setError('已使用默认文件格式（网络请求失败）');
+          }
+        }, 500);
       } catch (err) {
         console.error('获取格式错误详情:', err);
         // 使用默认格式

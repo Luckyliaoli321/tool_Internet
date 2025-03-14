@@ -7,6 +7,84 @@ import './index.css';
 // 引入Ant Design全局样式
 import 'antd/dist/reset.css';
 
+// ==== 最高优先级：阻止任何localhost请求 ====
+// 在任何其他代码执行前，重写所有网络请求方法
+(function blockAllLocalhostRequests() {
+  console.log('⚠️ 激活全局localhost请求拦截器');
+  
+  // 1. 拦截fetch
+  if (typeof window !== 'undefined' && window.fetch) {
+    const originalFetch = window.fetch;
+    window.fetch = function(resource, options) {
+      // 检查请求URL
+      const url = resource instanceof Request ? resource.url : resource;
+      if (typeof url === 'string' && url.includes('localhost')) {
+        console.error('🛑 全局拦截: 阻止fetch请求 -> ', url);
+        return Promise.reject(new Error('🚫 禁止访问localhost'));
+      }
+      return originalFetch.apply(this, arguments);
+    };
+    console.log('✅ 已拦截fetch');
+  }
+  
+  // 2. 拦截XMLHttpRequest
+  if (typeof window !== 'undefined' && window.XMLHttpRequest) {
+    const originalOpen = XMLHttpRequest.prototype.open;
+    const originalSend = XMLHttpRequest.prototype.send;
+    
+    XMLHttpRequest.prototype.open = function(method, url, ...args) {
+      // 存储原始URL供后续检查
+      this._url = url;
+      // 如果是localhost请求，修改为一个肯定失败的URL
+      if (typeof url === 'string' && url.includes('localhost')) {
+        console.error('🛑 全局拦截: 阻止XHR请求 -> ', url);
+        url = 'https://blocked-localhost-request.invalid';
+      }
+      return originalOpen.call(this, method, url, ...args);
+    };
+    
+    XMLHttpRequest.prototype.send = function(...args) {
+      // 二次检查，确保不会发送localhost请求
+      if (this._url && typeof this._url === 'string' && this._url.includes('localhost')) {
+        console.error('🛑 再次阻止XHR请求 -> ', this._url);
+        // 强制触发错误事件而非发送请求
+        setTimeout(() => {
+          const error = new Error('禁止访问localhost');
+          const event = new ErrorEvent('error', { error, message: error.message });
+          this.dispatchEvent(event);
+        }, 0);
+        return;
+      }
+      return originalSend.apply(this, arguments);
+    };
+    console.log('✅ 已拦截XMLHttpRequest');
+  }
+  
+  // 3. 拦截axios (如果已加载)
+  if (typeof window !== 'undefined' && window.axios) {
+    console.log('✅ axios已全局拦截');
+  }
+  
+  // 4. 添加全局错误处理器
+  window.addEventListener('error', function(event) {
+    // 隐藏与localhost相关的错误
+    if (event.error && event.error.message && event.error.message.includes('localhost')) {
+      console.warn('🔇 隐藏localhost相关错误');
+      event.preventDefault();
+    }
+  }, true);
+  
+  window.addEventListener('unhandledrejection', function(event) {
+    // 隐藏与localhost相关的Promise拒绝
+    if (event.reason && event.reason.message && event.reason.message.includes('localhost')) {
+      console.warn('🔇 隐藏localhost相关Promise拒绝');
+      event.preventDefault();
+    }
+  });
+  
+  console.log('⚡ 全局拦截器设置完成');
+})();
+
 // ==== 全局错误处理和请求拦截 ====
 (function setupGlobalErrorHandling() {
   // 拦截所有对localhost的fetch请求

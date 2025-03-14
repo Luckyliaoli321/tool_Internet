@@ -8,6 +8,42 @@ import './FileConvertPage.css';
 
 const { Option } = Select;
 
+// 默认支持的格式列表（当API获取失败时使用）
+const DEFAULT_FORMATS = [
+  {
+    name: 'Word文档',
+    extension: 'docx',
+    targetFormats: [
+      { name: 'PDF文档', extension: 'pdf' },
+      { name: '文本文件', extension: 'txt' }
+    ]
+  },
+  {
+    name: 'PDF文档',
+    extension: 'pdf',
+    targetFormats: [
+      { name: 'Word文档', extension: 'docx' },
+      { name: '文本文件', extension: 'txt' }
+    ]
+  },
+  {
+    name: 'Excel表格',
+    extension: 'xlsx',
+    targetFormats: [
+      { name: 'CSV文件', extension: 'csv' },
+      { name: 'PDF文档', extension: 'pdf' }
+    ]
+  },
+  {
+    name: '图片',
+    extension: 'jpg',
+    targetFormats: [
+      { name: 'PNG图片', extension: 'png' },
+      { name: 'WebP图片', extension: 'webp' }
+    ]
+  }
+];
+
 /**
  * 文件转换页面组件
  * @returns {React.Component} 文件转换页面组件
@@ -16,23 +52,37 @@ const FileConvertPage = () => {
   // 状态
   const [file, setFile] = useState(null);
   const [targetFormat, setTargetFormat] = useState('');
-  const [supportedFormats, setSupportedFormats] = useState([]);
+  const [supportedFormats, setSupportedFormats] = useState(DEFAULT_FORMATS); // 初始化为默认格式
   const [availableTargetFormats, setAvailableTargetFormats] = useState([]);
   const [converting, setConverting] = useState(false);
   const [progress, setProgress] = useState(0);
   const [error, setError] = useState('');
   const [convertedFileId, setConvertedFileId] = useState('');
   const [isCompleted, setIsCompleted] = useState(false);
+  const [usingDefaultFormats, setUsingDefaultFormats] = useState(false);
 
   // 获取支持的文件格式
   useEffect(() => {
     const fetchSupportedFormats = async () => {
       try {
+        console.log('开始获取支持的文件格式...');
         const data = await fileAPI.getSupportedFormats();
-        setSupportedFormats(data.formats);
+        console.log('获取格式成功:', data);
+        
+        if (data && data.formats && data.formats.length > 0) {
+          setSupportedFormats(data.formats);
+          setUsingDefaultFormats(false);
+        } else {
+          console.warn('API返回格式为空，使用默认格式');
+          setSupportedFormats(DEFAULT_FORMATS);
+          setUsingDefaultFormats(true);
+        }
       } catch (err) {
-        setError('获取支持的文件格式失败');
-        console.error('获取格式错误:', err);
+        console.error('获取格式错误详情:', err);
+        // 使用默认格式
+        setSupportedFormats(DEFAULT_FORMATS);
+        setUsingDefaultFormats(true);
+        setError('获取支持的文件格式失败，已使用默认格式');
       }
     };
 
@@ -54,15 +104,18 @@ const FileConvertPage = () => {
         setAvailableTargetFormats(currentFileType.targetFormats);
         setTargetFormat(currentFileType.targetFormats[0]?.extension || '');
       } else {
-        setAvailableTargetFormats([]);
-        setTargetFormat('');
-        setError(`不支持${extension}格式的文件转换`);
+        // 如果文件类型不在支持列表中，尝试使用默认格式中的第一个
+        setAvailableTargetFormats(DEFAULT_FORMATS[0].targetFormats);
+        setTargetFormat(DEFAULT_FORMATS[0].targetFormats[0]?.extension || '');
+        if (!usingDefaultFormats) {
+          setError(`不支持${extension}格式的文件转换，请尝试其他格式`);
+        }
       }
     } else {
       setAvailableTargetFormats([]);
       setTargetFormat('');
     }
-  }, [file, supportedFormats]);
+  }, [file, supportedFormats, usingDefaultFormats]);
 
   // 处理文件上传
   const handleFileUpload = useCallback((uploadedFile) => {

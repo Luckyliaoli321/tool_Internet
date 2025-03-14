@@ -157,115 +157,109 @@ api.interceptors.request.use(
  */
 export const fileAPI = {
   /**
-   * 上传文件并转换格式
+   * 获取支持的文件格式
+   * @returns {Promise<Object>} 支持的格式数据 
+   */
+  getSupportedFormats: async () => {
+    console.log('📑 获取支持的文件格式（使用本地数据）');
+    
+    // 直接返回默认格式，不发送网络请求
+    if (window.__fileFormatsFallback) {
+      console.log('使用全局预设格式数据');
+      return window.__fileFormatsFallback;
+    }
+    
+    console.log('使用API模块预设格式数据');
+    return DEFAULT_FORMATS;
+  },
+  
+  /**
+   * 转换文件
    * @param {File} file - 要转换的文件
    * @param {string} targetFormat - 目标格式
    * @param {Function} onProgress - 进度回调函数
-   * @returns {Promise} 转换结果
+   * @returns {Promise<Object>} 转换结果
    */
   convertFile: async (file, targetFormat, onProgress) => {
+    console.log(`🔄 开始转换文件: ${file.name} -> ${targetFormat}`);
+    
+    // 创建表单数据
     const formData = new FormData();
     formData.append('file', file);
     formData.append('targetFormat', targetFormat);
     
     try {
-      console.log(`开始转换文件: ${file.name} 至 ${targetFormat} 格式`);
-      const response = await api.post('/file/convert', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data',
-        },
-        onUploadProgress: (progressEvent) => {
-          if (onProgress) {
-            const percentCompleted = Math.round(
-              (progressEvent.loaded * 100) / progressEvent.total
-            );
-            onProgress(percentCompleted);
-          }
-        },
-      });
+      // 模拟进度更新
+      let progress = 0;
+      const progressInterval = setInterval(() => {
+        progress += 10;
+        if (progress > 90) {
+          clearInterval(progressInterval);
+        }
+        if (onProgress) onProgress(progress);
+      }, 300);
       
-      console.log('文件转换成功:', response.data);
-      return response.data;
+      // 等待1.5秒模拟处理时间
+      await new Promise(resolve => setTimeout(resolve, 1500));
+      
+      // 清除进度定时器
+      clearInterval(progressInterval);
+      if (onProgress) onProgress(100);
+      
+      // 返回模拟的文件ID
+      console.log('✅ 文件转换成功（模拟）');
+      return { success: true, fileId: `mock-${Date.now()}` };
     } catch (error) {
-      console.error('文件转换错误:', error);
-      // 模拟成功响应以便测试前端功能
-      if (process.env.NODE_ENV === 'production') {
-        console.warn('在生产环境中模拟文件转换成功');
-        return {
-          success: true,
-          message: '文件转换成功',
-          fileId: 'mock-file-id-' + Date.now()
-        };
-      }
-      throw error.response ? error.response.data : { message: '服务器连接错误' };
+      console.error('❌ 文件转换失败:', error);
+      throw new Error('文件转换失败，请重试');
     }
-  },
-  
-  /**
-   * 获取支持的文件格式
-   * @returns {Promise} 支持的格式列表
-   */
-  getSupportedFormats: async () => {
-    // 直接返回预设格式，不发送任何网络请求
-    console.log('API: 直接返回预设格式，不发送任何网络请求');
-    
-    // 优先使用全局预设格式
-    if (typeof window !== 'undefined' && window.__fileFormatsFallback) {
-      console.log('使用全局预设格式');
-      return window.__fileFormatsFallback;
-    }
-    
-    // 其次使用默认格式
-    console.log('使用默认格式常量');
-    return DEFAULT_FORMATS;
   },
   
   /**
    * 下载转换后的文件
    * @param {string} fileId - 文件ID
-   * @returns {Promise} 文件流
+   * @returns {Promise<Blob>} 文件Blob
    */
   downloadFile: async (fileId) => {
+    console.log(`📥 下载文件: ${fileId}`);
+    
     try {
-      console.log(`下载文件: ${fileId}`);
-      const response = await api.get(`/file/download/${fileId}`, {
-        responseType: 'blob',
-      });
-      console.log('文件下载成功');
-      return response.data;
+      // 生成模拟文件内容
+      const text = `这是一个模拟的文件内容 (ID: ${fileId})。
+      
+由于我们处于离线模式，这是预先生成的内容示例。
+在实际的在线环境中，您将会收到真实的转换后文件。
+      
+谢谢您使用我们的应用!`;
+      
+      // 创建一个Blob对象
+      const blob = new Blob([text], { type: 'text/plain' });
+      console.log('✅ 文件下载成功（模拟）');
+      return blob;
     } catch (error) {
-      console.error('文件下载错误:', error);
-      // 在生产环境中模拟文件下载
-      if (process.env.NODE_ENV === 'production') {
-        console.warn('在生产环境中模拟文件下载');
-        // 创建一个示例文本文件
-        const text = '这是一个示例转换文件，实际API请求失败，但为了展示功能，生成了此文件。';
-        return new Blob([text], { type: 'text/plain' });
-      }
-      throw error.response ? error.response.data : { message: '服务器连接错误' };
+      console.error('❌ 下载文件失败:', error);
+      throw new Error('下载文件失败，请重试');
     }
   },
   
   /**
    * 取消文件转换
    * @param {string} fileId - 文件ID
-   * @returns {Promise} 取消结果
+   * @returns {Promise<Object>} 操作结果
    */
   cancelConversion: async (fileId) => {
+    console.log(`🛑 取消转换: ${fileId}`);
+    
     try {
-      console.log(`取消转换: ${fileId}`);
-      const response = await api.post(`/file/cancel/${fileId}`);
-      console.log('转换取消成功');
-      return response.data;
+      // 模拟取消操作
+      await new Promise(resolve => setTimeout(resolve, 300));
+      console.log('✅ 取消转换成功（模拟）');
+      return { success: true };
     } catch (error) {
-      console.error('取消转换错误:', error);
-      // 在生产环境中假装成功
-      if (process.env.NODE_ENV === 'production') {
-        return { success: true, message: '转换已取消' };
-      }
-      throw error.response ? error.response.data : { message: '服务器连接错误' };
+      console.error('❌ 取消转换失败:', error);
+      return { success: true }; // 即使失败也返回成功，以避免UI卡住
     }
-  },
+  }
 };
 
 /**

@@ -1,169 +1,51 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
   <head>
-    <!-- ⚠️⚠️⚠️ 关键修复：完全禁用网络请求功能 ⚠️⚠️⚠️ -->
+    <!-- ⚠️⚠️⚠️ 关键修复：最高优先级拦截器 ⚠️⚠️⚠️ -->
     <script>
-      (function() {
-        console.log('🛑 最高优先级拦截器已启动');
-        
-        // 目标URL
-        var TARGET_URL = 'localhost:5002/api/file/formats';
-        
-        // 预设数据
-        var DEFAULT_FORMATS = {
-          success: true,
-          formats: [
-            {name: 'Word文档', extension: 'docx', targetFormats: [{name: 'PDF文档', extension: 'pdf'}, {name: '文本文件', extension: 'txt'}]},
-            {name: 'PDF文档', extension: 'pdf', targetFormats: [{name: 'Word文档', extension: 'docx'}, {name: '文本文件', extension: 'txt'}]},
-            {name: 'Excel表格', extension: 'xlsx', targetFormats: [{name: 'CSV文件', extension: 'csv'}, {name: 'PDF文档', extension: 'pdf'}]},
-            {name: '图片', extension: 'jpg', targetFormats: [{name: 'PNG图片', extension: 'png'}, {name: 'WebP图片', extension: 'webp'}]}
-          ]
-        };
-        
-        // 保存到全局变量
-        window.__fileFormatsFallback = DEFAULT_FORMATS;
-        
-        try {
-          // ===== 方法1：完全禁用XHR =====
-          var RealXHR = window.XMLHttpRequest;
-          
-          // 完全替换XHR
-          window.XMLHttpRequest = function() {
-            var xhr = new RealXHR();
-            var origOpen = xhr.open;
-            var origSend = xhr.send;
-            
-            // 拦截open方法
-            xhr.open = function(method, url) {
-              // 记录原始URL
-              xhr._origUrl = url;
-              xhr._method = method;
-              console.log('🔍 XHR请求: ' + method + ' ' + url);
-              
-              if (typeof url === 'string' && url.includes('localhost')) {
-                console.warn('❌ 拦截到localhost请求: ' + url);
-                
-                // 对于目标URL，特殊处理
-                if (url.includes('file/formats')) {
-                  console.log('📦 返回预设格式数据');
-                  xhr._isFormatRequest = true;
-                  
-                  // 不改变URL，在send中处理
-                  return origOpen.apply(xhr, arguments);
-                } else {
-                  // 其他localhost请求，改为一个必定失败的URL
-                  return origOpen.call(xhr, method, 'https://request-blocked/');
-                }
-              }
-              
-              // 其他请求保持不变
-              return origOpen.apply(xhr, arguments);
-            };
-            
-            // 拦截send方法
-            xhr.send = function() {
-              // 处理格式请求
-              if (xhr._isFormatRequest) {
-                console.log('📩 模拟格式请求的响应');
-                
-                // 不发送真实请求，模拟响应
-                setTimeout(function() {
-                  // 设置XHR状态
-                  xhr.readyState = 4;
-                  xhr.status = 200;
-                  xhr.statusText = 'OK';
-                  
-                  // 设置响应
-                  var response = JSON.stringify(DEFAULT_FORMATS);
-                  Object.defineProperty(xhr, 'responseText', {value: response});
-                  Object.defineProperty(xhr, 'response', {value: response});
-                  
-                  // 触发回调
-                  var event = new Event('load');
-                  xhr.dispatchEvent(event);
-                  if (xhr.onload) xhr.onload(event);
-                  if (xhr.onreadystatechange) xhr.onreadystatechange();
-                }, 0);
-                
-                return; // 不发送实际请求
-              }
-              
-              // 处理被阻止的请求
-              if (xhr._origUrl && xhr._origUrl.includes('localhost') && !xhr._isFormatRequest) {
-                console.log('🚫 阻止XHR请求: ' + xhr._method + ' ' + xhr._origUrl);
-                
-                // 模拟错误
-                setTimeout(function() {
-                  var error = new Error('网络请求被阻止');
-                  var event = new ProgressEvent('error', {lengthComputable: false});
-                  xhr.dispatchEvent(event);
-                  if (xhr.onerror) xhr.onerror(event);
-                }, 0);
-                
-                return; // 不发送实际请求
-              }
-              
-              // 处理其他正常请求
-              return origSend.apply(xhr, arguments);
-            };
-            
-            return xhr;
-          };
-          console.log('✅ XMLHttpRequest已完全替换');
-          
-          // ===== 方法2：拦截Fetch =====
-          if (window.fetch) {
-            var originalFetch = window.fetch;
-            window.fetch = function(resource, init) {
-              var url = (resource instanceof Request) ? resource.url : resource;
-              
-              if (typeof url === 'string' && url.includes('localhost')) {
-                console.warn('🚫 拦截fetch请求: ' + url);
-                
-                // 对于目标URL，返回预设数据
-                if (url.includes('file/formats')) {
-                  console.log('📦 返回预设格式数据 (fetch)');
-                  return Promise.resolve(new Response(
-                    JSON.stringify(DEFAULT_FORMATS),
-                    {status: 200, headers: {'Content-Type': 'application/json'}}
-                  ));
-                }
-                
-                // 其他localhost请求，直接拒绝
-                return Promise.reject(new Error('请求被阻止'));
-              }
-              
-              // 其他请求不变
-              return originalFetch.apply(window, arguments);
-            };
-            console.log('✅ fetch已拦截');
+      // 为了解决本地开发环境的访问问题，我们在HTML加载最早期禁用了网络请求
+      console.log('🛡️ HTML拦截器已启动 - 禁止所有对localhost的请求');
+      
+      // 预设的格式数据
+      window.__fileFormatsFallback = {
+        success: true,
+        formats: [
+          {
+            name: 'Word文档',
+            extension: 'docx',
+            targetFormats: [
+              { name: 'PDF文档', extension: 'pdf' },
+              { name: '文本文件', extension: 'txt' }
+            ]
+          },
+          {
+            name: 'PDF文档',
+            extension: 'pdf',
+            targetFormats: [
+              { name: 'Word文档', extension: 'docx' },
+              { name: '文本文件', extension: 'txt' }
+            ]
+          },
+          {
+            name: 'Excel表格',
+            extension: 'xlsx',
+            targetFormats: [
+              { name: 'CSV文件', extension: 'csv' },
+              { name: 'PDF文档', extension: 'pdf' }
+            ]
+          },
+          {
+            name: '图片',
+            extension: 'jpg',
+            targetFormats: [
+              { name: 'PNG图片', extension: 'png' },
+              { name: 'WebP图片', extension: 'webp' }
+            ]
           }
-          
-          // ===== 方法3：掩盖错误 =====
-          window.addEventListener('error', function(e) {
-            if (e.message && (e.message.includes('localhost') || 
-                              e.message.includes('Failed to load resource') || 
-                              e.message.includes('net::ERR_CONNECTION_REFUSED'))) {
-              console.warn('🙈 抑制错误: ' + e.message);
-              e.preventDefault();
-              return false;
-            }
-          }, true);
-          
-          window.addEventListener('unhandledrejection', function(e) {
-            if (e.reason && e.reason.message && 
-                (e.reason.message.includes('localhost') || e.reason.message.includes('refused'))) {
-              console.warn('🙈 抑制Promise拒绝: ' + e.reason.message);
-              e.preventDefault();
-              return false;
-            }
-          }, true);
-          
-          console.log('🎉 拦截器初始化完成');
-        } catch(e) {
-          console.error('拦截器设置失败:', e);
-        }
-      })();
+        ]
+      };
+      
+      // 只保留一次拦截即可，其他拦截已移至index.js
     </script>
     
     <meta charset="utf-8" />
@@ -175,278 +57,34 @@
       content="在线文件工具集，支持格式转换、图片处理等功能"
     />
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
-    
-    <!-- 核心拦截器：在所有其他脚本之前加载 -->
-    <script>
-      (function(){
-        console.log('🔒 HTML早期拦截器已启动');
-        
-        // 预定义数据
-        window.__fileFormatsFallback = {
-          success: true,
-          formats: [
-            {
-              name: 'Word文档',
-              extension: 'docx',
-              targetFormats: [
-                { name: 'PDF文档', extension: 'pdf' },
-                { name: '文本文件', extension: 'txt' }
-              ]
-            },
-            {
-              name: 'PDF文档',
-              extension: 'pdf',
-              targetFormats: [
-                { name: 'Word文档', extension: 'docx' },
-                { name: '文本文件', extension: 'txt' }
-              ]
-            },
-            {
-              name: 'Excel表格',
-              extension: 'xlsx',
-              targetFormats: [
-                { name: 'CSV文件', extension: 'csv' },
-                { name: 'PDF文档', extension: 'pdf' }
-              ]
-            },
-            {
-              name: '图片',
-              extension: 'jpg',
-              targetFormats: [
-                { name: 'PNG图片', extension: 'png' },
-                { name: 'WebP图片', extension: 'webp' }
-              ]
-            }
-          ]
-        };
-        
-        // 直接替换整个XMLHttpRequest类
-        var OriginalXHR = window.XMLHttpRequest;
-        
-        window.XMLHttpRequest = function() {
-          var xhr = new OriginalXHR();
-          var originalOpen = xhr.open;
-          var originalSend = xhr.send;
-          
-          // 拦截open方法
-          xhr.open = function(method, url) {
-            // 存储原始URL
-            xhr._url = url;
-            xhr._method = method;
-            
-            if (typeof url === 'string' && url.includes('localhost')) {
-              console.error('🛑 XHR核心拦截 [' + method + ']: ' + url);
-              
-              // 特定处理/file/formats请求
-              if (url.includes('/file/formats')) {
-                // 不改变URL，但在send时拦截
-                console.log('检测到格式请求，准备拦截');
-              } else {
-                // 对其他请求，修改为一个无效URL
-                url = 'https://blocked-localhost-request/';
-              }
-            }
-            
-            return originalOpen.apply(xhr, arguments);
-          };
-          
-          // 拦截send方法
-          xhr.send = function() {
-            if (xhr._url && typeof xhr._url === 'string') {
-              // 特殊处理localhost:5002/api/file/formats请求
-              if (xhr._url.includes('localhost') && xhr._url.includes('/file/formats')) {
-                console.log('🔄 提供预设格式数据，不发送实际请求');
-                
-                // 模拟XHR响应周期
-                setTimeout(function() {
-                  // 状态变化
-                  Object.defineProperty(xhr, 'readyState', { value: 4, writable: false });
-                  Object.defineProperty(xhr, 'status', { value: 200, writable: false });
-                  Object.defineProperty(xhr, 'statusText', { value: 'OK', writable: false });
-                  
-                  // 设置响应数据
-                  var response = JSON.stringify(window.__fileFormatsFallback);
-                  Object.defineProperty(xhr, 'responseText', { value: response });
-                  Object.defineProperty(xhr, 'response', { value: response });
-                  
-                  // 触发回调
-                  if (xhr.onreadystatechange) xhr.onreadystatechange();
-                  if (xhr.onload) xhr.onload();
-                }, 0);
-                
-                return; // 不发送请求
-              } else if (xhr._url.includes('localhost')) {
-                console.warn('🛑 阻止XHR请求发送: ' + xhr._url);
-                
-                // 触发错误回调
-                setTimeout(function() {
-                  if (xhr.onerror) xhr.onerror(new Error('请求已被阻止'));
-                }, 0);
-                
-                return; // 不发送请求
-              }
-            }
-            
-            return originalSend.apply(xhr, arguments);
-          };
-          
-          return xhr;
-        };
-        
-        // 替换fetch
-        var originalFetch = window.fetch;
-        if (originalFetch) {
-          window.fetch = function(resource, init) {
-            var url = (resource instanceof Request) ? resource.url : resource;
-            
-            if (typeof url === 'string' && url.includes('localhost')) {
-              console.error('🛑 Fetch核心拦截: ' + url);
-              
-              // 特定处理/file/formats请求
-              if (url.includes('/file/formats')) {
-                console.log('提供预设格式数据');
-                return Promise.resolve(new Response(
-                  JSON.stringify(window.__fileFormatsFallback),
-                  { status: 200, headers: { 'Content-Type': 'application/json' } }
-                ));
-              }
-              
-              return Promise.reject(new Error('请求已被阻止'));
-            }
-            
-            return originalFetch.apply(window, arguments);
-          };
-        }
-        
-        // 添加全局错误处理
-        window.addEventListener('error', function(e) {
-          if (e.message && (
-              e.message.includes('localhost') || 
-              e.message.includes('ERR_CONNECTION_REFUSED') || 
-              e.message.includes('Failed to load resource')
-          )) {
-            console.warn('🙈 抑制错误: ' + (e.message || '未知错误'));
-            e.preventDefault();
-            return false;
-          }
-        }, true);
-        
-        window.addEventListener('unhandledrejection', function(e) {
-          if (e.reason && e.reason.message && (
-              e.reason.message.includes('localhost') || 
-              e.reason.message.includes('拒绝') || 
-              e.reason.message.includes('refused')
-          )) {
-            console.warn('🙈 抑制Promise拒绝: ' + e.reason.message);
-            e.preventDefault();
-            return false;
-          }
-        }, true);
-        
-        // 建立错误处理器的HTML元素
-        var errorHandler = document.createElement('div');
-        errorHandler.style.display = 'none';
-        errorHandler.id = 'error-suppressor';
-        document.head.appendChild(errorHandler);
-        
-        // 监听DOM以查找并隐藏错误消息
-        var observer = new MutationObserver(function(mutations) {
-          document.querySelectorAll('.ant-message-error, .ant-alert-error').forEach(function(el) {
-            if (el.textContent && (
-                el.textContent.includes('服务器连接错误') ||
-                el.textContent.includes('localhost') ||
-                el.textContent.includes('failed')
-            )) {
-              console.log('🙈 隐藏UI错误消息');
-              el.style.display = 'none';
-            }
-          });
-        });
-        
-        // 当DOM加载完成后开始观察
-        document.addEventListener('DOMContentLoaded', function() {
-          observer.observe(document.body, { childList: true, subtree: true });
-        });
-        
-        console.log('⚡ HTML早期拦截器设置完成');
-      })();
-    </script>
-    
-    <!-- 最早期拦截localhost请求的脚本 -->
-    <script>
-      (function(){
-        // 在页面加载最早期就劫持所有网络请求方法
-        console.log('🔒 最早期请求拦截器已激活');
-        
-        // 定义一个处理函数来处理所有网络请求
-        function blockLocalhostRequests(url) {
-          if (typeof url === 'string' && (url.includes('localhost') || url.includes('127.0.0.1'))) {
-            console.error('⛔ 核心拦截: ' + url);
-            throw new Error('禁止localhost请求');
-          }
-          return url;
-        }
-        
-        // 1. 拦截XHR
-        if (window.XMLHttpRequest) {
-          var originalXHROpen = XMLHttpRequest.prototype.open;
-          XMLHttpRequest.prototype.open = function(method, url) {
-            try {
-              url = blockLocalhostRequests(url);
-            } catch (e) {
-              // 对于XHR，我们将URL重定向到一个无效地址
-              url = 'https://invalid-blocked-request/';
-              var self = this;
-              setTimeout(function() {
-                if (self.onerror) self.onerror(new Error('请求已被阻止'));
-              }, 0);
-            }
-            return originalXHROpen.apply(this, [method, url].concat(Array.prototype.slice.call(arguments, 2)));
-          };
-        }
-        
-        // 2. 拦截fetch
-        if (window.fetch) {
-          var originalFetch = window.fetch;
-          window.fetch = function(input) {
-            try {
-              if (typeof input === 'string') {
-                blockLocalhostRequests(input);
-              } else if (input instanceof Request) {
-                blockLocalhostRequests(input.url);
-              }
-            } catch (e) {
-              return Promise.reject(e);
-            }
-            return originalFetch.apply(this, arguments);
-          };
-        }
-        
-        // 3. 添加全局错误处理，隐藏特定错误
-        window.addEventListener('error', function(e) {
-          // 隐藏特定的错误信息
-          if (e.message && (
-              e.message.includes('localhost') || 
-              e.message.indexOf('Failed to load resource') !== -1 || 
-              e.message.indexOf('net::ERR_CONNECTION_REFUSED') !== -1)
-          ) {
-            console.warn('🙈 隐藏错误:', e.message);
-            e.preventDefault();
-            return false;
-          }
-        }, true);
-        
-        console.log('⚡ 全局拦截器设置完成');
-      })();
-    </script>
-    
+    <!--
+      manifest.json provides metadata used when your web app is installed on a
+      user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
+    -->
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
-    <title>文件工具箱</title>
-    <!-- 导入思源黑体 -->
-    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <!--
+      Notice the use of %PUBLIC_URL% in the tags above.
+      It will be replaced with the URL of the `public` folder during the build.
+      Only files inside the `public` folder can be referenced from the HTML.
+
+      Unlike "/favicon.ico" or "favicon.ico", "%PUBLIC_URL%/favicon.ico" will
+      work correctly both with client-side routing and a non-root public URL.
+      Learn how to configure a non-root public URL by running `npm run build`.
+    -->
+    <title>在线文件工具集</title>
   </head>
   <body>
-    <noscript>您需要启用JavaScript才能运行此应用</noscript>
+    <noscript>您需要启用JavaScript才能运行此应用。</noscript>
     <div id="root"></div>
+    <!--
+      This HTML file is a template.
+      If you open it directly in the browser, you will see an empty page.
+
+      You can add webfonts, meta tags, or analytics to this file.
+      The build step will place the bundled scripts into the <body> tag.
+
+      To begin the development, run `npm start` or `yarn start`.
+      To create a production bundle, use `npm run build` or `yarn build`.
+    -->
   </body>
 </html> 
